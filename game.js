@@ -14,6 +14,7 @@ const COLORS = [
   '#90caf9', // J - azul pálido
   '#ffb74d', // L - orange
   '#b0bec5', // N - tuerca (gris metálico)
+  '#ff5252', // B - bomba (power-up)
 ];
 
 const PIECES = [
@@ -26,10 +27,15 @@ const PIECES = [
   [[6,0,0],[6,6,6],[0,0,0]],                  // J
   [[0,0,7],[7,7,7],[0,0,0]],                  // L
   [[8,8,8],[8,0,8],[8,8,8]],                  // N - tuerca (hueco central)
+  [[9]],                                       // B - bomba (power-up, destruye 3×3)
 ];
 
 // Probabilidad de que salga la tuerca (pieza reto); el resto se reparte entre las 7 clásicas
 const NUT_CHANCE = 0.05;
+
+// Power-up bomba: se gana uno cada POWERUP_EVERY líneas completadas
+const BOMB = 9;
+const POWERUP_EVERY = 10;
 
 const LINE_SCORES = [0, 100, 300, 500, 800];
 
@@ -50,14 +56,20 @@ const themeLabel = document.getElementById('theme-label');
 // Color de la rejilla según el tema (se actualiza solo al cambiar de tema)
 let gridColor = getComputedStyle(document.documentElement).getPropertyValue('--grid').trim();
 
-let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
+let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId, bombsPending, nextPowerupAt;
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
 }
 
 function randomPiece() {
-  const type = Math.random() < NUT_CHANCE ? 8 : Math.floor(Math.random() * 7) + 1;
+  let type;
+  if (bombsPending > 0) {
+    bombsPending--;
+    type = BOMB;
+  } else {
+    type = Math.random() < NUT_CHANCE ? 8 : Math.floor(Math.random() * 7) + 1;
+  }
   const shape = PIECES[type].map(row => [...row]);
   return { type, shape, x: Math.floor(COLS / 2) - Math.floor(shape[0].length / 2), y: 0 };
 }
@@ -103,6 +115,14 @@ function merge() {
         board[current.y + r][current.x + c] = current.shape[r][c];
 }
 
+// Vacía el área 3×3 centrada en (cx, cy); los bloques de encima quedan flotando
+function explode(cx, cy) {
+  for (let r = cy - 1; r <= cy + 1; r++)
+    for (let c = cx - 1; c <= cx + 1; c++)
+      if (r >= 0 && r < ROWS && c >= 0 && c < COLS)
+        board[r][c] = 0;
+}
+
 function clearLines() {
   let cleared = 0;
   for (let r = ROWS - 1; r >= 0; r--) {
@@ -115,6 +135,11 @@ function clearLines() {
   }
   if (cleared) {
     lines += cleared;
+    // while: un tetris puede cruzar más de un umbral
+    while (lines >= nextPowerupAt) {
+      bombsPending++;
+      nextPowerupAt += POWERUP_EVERY;
+    }
     score += (LINE_SCORES[cleared] || 0) * level;
     level = Math.floor(lines / 10) + 1;
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
@@ -146,7 +171,9 @@ function softDrop() {
 }
 
 function lockPiece() {
-  merge();
+  // La bomba no se fusiona al tablero: detona en su celda
+  if (current.type === BOMB) explode(current.x, current.y);
+  else merge();
   clearLines();
   spawn();
 }
@@ -279,6 +306,8 @@ function init() {
   dropInterval = 1000;
   dropAccum = 0;
   lastTime = performance.now();
+  bombsPending = 0;
+  nextPowerupAt = POWERUP_EVERY;
   next = randomPiece();
   spawn();
   updateHUD();
