@@ -50,7 +50,11 @@ jobs:
             3. Explora el código con Read, Glob y Grep (`CLAUDE.md`, `index.html`, `style.css`, `game.js`)
                para ubicar las zonas relacionadas con el issue.
 
-            4. Escribe el diagnóstico en español, en Markdown, en el archivo /tmp/claude-triage.md.
+            4. Escribe el diagnóstico en español, en el archivo /tmp/claude-triage.md, usando
+               GitHub Flavored Markdown (GFM) que GitHub renderice correctamente en un comentario:
+               encabezados `##`/`###`, listas con `-` o `1.`, código en línea con comillas invertidas,
+               bloques de código cercados con ``` y lenguaje (p. ej. ```js), tablas GFM si aplican,
+               y referencias a issues/PRs como #número. No uses HTML salvo el marcador inicial.
                La PRIMERA línea debe ser exactamente: <!-- claude-triage -->
                Luego usa estas secciones:
                ## 🔎 Diagnóstico automático (Claude)
